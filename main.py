@@ -1,32 +1,24 @@
 import sympy as sym
 import control as ctrl
 import numpy as np
-import matplotlib.pyplot as plt
-
 m, ell, x3, x4, M, g, F, m = sym.symbols('m, ell, x3, x4, M, g, F, m')
-
 # φ(F, x3, x4)
 phi = 4*m*ell*x4**2*sym.sin(x3) + 4*F - 3*m*g*sym.sin(x3)*sym.cos(x3)
 phi /= 4*(M+m) - 3*m*sym.cos(x3)**2
-
 dphi_x3 = phi.diff(x3)
 dphi_x4 = phi.diff(x4)
 dphi_F = phi.diff(F)
-
 # Equilibrium point
 Feq = 0
 x3eq = 0
 x4eq = 0
-
 dphi_F_eq = dphi_F.subs([(F, Feq), (x3, x3eq), (x4, x4eq)])
 dphi_x3_eq = dphi_x3.subs([(F, Feq), (x3, x3eq), (x4, x4eq)])
 dphi_x4_eq = dphi_x4.subs([(F, Feq), (x3, x3eq), (x4, x4eq)])
-
 a = dphi_F_eq
 b = -dphi_x3_eq
 c = 3/(ell*(4*M + m))
 d = 3*(M+m)*g/(ell*(4*M + m))
-
 # GIVEN VALUES!
 M_value = 0.3
 m_value = 0.1
@@ -51,15 +43,16 @@ d_value = evaluate_at_given_parameters(d)
 # -----------------------------------
 transfer_function_F2x3 = ctrl.TransferFunction([-c_value], [1, 0, -d_value])
 
-t_step, x3_step = ctrl.step_response(transfer_function_F2x3)
+def pid(Kp, Ki, Kd):
+    Gc = ctrl.TransferFunction([Kp], [1])
+    Gc += ctrl.TransferFunction([Kd, 0], [1])
+    Gc += ctrl.TransferFunction([Ki], [1, 0])
+    return Gc
 
-n_points = 500
-t_final = 2
-t_span = np.linspace(0, t_final, n_points)# array of time instants
-input_signal = np.sin(5 * np.sqrt(t_span **2 * 100))# input signal
-tf = ctrl.TransferFunction(1, [0.5, 0.1, 1])# transfer function
-t_out, y_out, x_out = ctrl.forced_response(tf, t_span, input_signal)
-plt.plot(t_out, y_out)
+transfer_function_pid = -pid(Kp=130, Ki=0, Kd=12)
+overall_tf = ctrl.feedback(transfer_function_F2x3, transfer_function_pid)
+t_imp, x3_imp = ctrl.impulse_response(overall_tf)
+x3_degrees = x3_imp * 180 /np.pi
+import matplotlib.pyplot as plt
+plt.plot(t_imp, x3_degrees)
 plt.show()
-plt.xlabel("Time/seconds")
-plt.ylabel("Angle from Vertical/degrees")
